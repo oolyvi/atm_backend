@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ATM Monolithic — API Console</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>body {
+        background: #f4f6fa;
+        color: #202938
+    }
+
+    .hero {
+        background: #172554;
+        color: #fff;
+        border-radius: 18px
+    }
+
+    .card {
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 5px 22px #1725540c
+    }
+
+    .response-box {
+        min-height: 340px;
+        max-height: 65vh;
+        overflow: auto;
+        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        background: #101827;
+        color: #dbeafe;
+        border-radius: 10px;
+        font-size: .88rem
+    }
+
+    .method {
+        font-weight: 800;
+        min-width: 68px;
+        display: inline-block
+    }
+
+    .small-help {
+        font-size: .85rem;
+        color: #64748b
+    }
+
+    .form-control, .form-select {
+        border-color: #d7deea
+    }
+
+    .section-label {
+        font-size: .78rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #64748b
+    }</style>
+</head>
+<body>
+<main class="container py-4 py-lg-5">
+    <header class="hero p-4 p-lg-5 mb-4">
+        <div class="small text-uppercase opacity-75 mb-2">Spring Boot · REST API</div>
+        <h1 class="h2 fw-bold">ATM Monolithic API Console</h1>
+        <p class="mb-0 opacity-75">Choose a controller endpoint, edit its path/body/parameters, and send a request to
+            your running application.</p></header>
+    <div class="row g-4">
+        <section class="col-lg-7">
+            <div class="card p-4"><h2 class="h5 mb-3">Request</h2><label class="form-label" for="endpointSelect">Controller
+                endpoint</label><select id="endpointSelect" class="form-select mb-3"></select>
+                <div class="row g-2 mb-2">
+                    <div class="col-3"><label class="form-label" for="httpMethod">Method</label><input id="httpMethod"
+                                                                                                       class="form-control fw-bold"
+                                                                                                       readonly></div>
+                    <div class="col-9"><label class="form-label" for="httpUrl">Request path</label><input id="httpUrl"
+                                                                                                          class="form-control font-monospace"
+                                                                                                          value="/customer/all">
+                    </div>
+                </div>
+                <p class="small-help">Replace path placeholders such as <code>{id}</code> with real IDs before sending.
+                </p>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center"><label class="form-label mb-1"
+                                                                                          for="requestBody">JSON
+                        body</label>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" id="formatBtn">Format JSON
+                        </button>
+                    </div>
+                    <textarea id="requestBody" class="form-control font-monospace" rows="9" spellcheck="false"
+                              placeholder="This endpoint does not require a body."></textarea></div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center"><span class="section-label">Query parameters</span>
+                        <button class="btn btn-sm btn-outline-primary" id="addParamBtn" type="button">+ Add parameter
+                        </button>
+                    </div>
+                    <div id="paramsContainer" class="mt-2"></div>
+                    <p class="small-help mt-1 mb-0">Used for parameters such as <code>cardNumber</code>,
+                        <code>atmId</code>, <code>amount</code>, <code>limit</code>, <code>status</code>, <code>startDate</code>,
+                        and <code>endDate</code>.</p></div>
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center"><span
+                            class="section-label">Headers</span>
+                        <button class="btn btn-sm btn-outline-primary" id="addHeaderBtn" type="button">+ Add header
+                        </button>
+                    </div>
+                    <div id="headersContainer" class="mt-2"></div>
+                    <p class="small-help mt-1 mb-0">Transaction execute/transfer/refund endpoints require <code>Idempotency-Key</code>.
+                    </p></div>
+                <button class="btn btn-primary btn-lg w-100" id="sendBtn" type="button">Send request</button>
+                <div class="small-help mt-3">Requests are sent to the same host serving this page. Run the app on port
+                    8081 and open <code>http://localhost:8081/</code>.
+                </div>
+            </div>
+        </section>
+        <section class="col-lg-5">
+            <div class="card p-4 h-100">
+                <div class="d-flex justify-content-between align-items-center mb-3"><h2 class="h5 mb-0">Response</h2>
+                    <span id="responseStatus" class="badge text-bg-secondary">Not sent</span></div>
+                <div class="section-label mb-2">Response body</div>
+                <pre id="responseBody" class="response-box p-3">Response output will appear here.</pre>
+                <button id="clearBtn" class="btn btn-outline-secondary btn-sm align-self-start" type="button">Clear
+                    response
+                </button>
+            </div>
+        </section>
+    </div>
+    <div class="card p-4 mt-4"><h2 class="h5">Endpoint reference</h2>
+        <p class="small-help">All controller mappings found in this project are included in the selector below
+            (including query/header requirements).</p>
+        <div id="endpointReference" class="table-responsive"></div>
+    </div>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const endpoints = [{
+        "group": "Admin",
+        "method": "POST",
+        "path": "/admin/login",
+        "label": "Authenticate admin",
+        "body": {"username": "admin", "password": "1234"}
+    }, {
+        "group": "Admin",
+        "method": "PUT",
+        "path": "/admin/{adminId}/profile",
+        "label": "Update admin profile",
+        "body": ""
+    }, {
+        "group": "Admin",
+        "method": "PATCH",
+        "path": "/admin/accounts/{accountId}/limit",
+        "label": "Update account daily limit",
+        "body": ""
+    }, {
+        "group": "Admin",
+        "method": "PATCH",
+        "path": "/admin/terminals/{terminalId}/status",
+        "label": "Change terminal status",
+        "body": ""
+    }, {
+        "group": "Admin",
+        "method": "POST",
+        "path": "/admin/cards/{cardId}/unblock",
+        "label": "Unblock card",
+        "body": null
+    }, {
+        "group": "Admin",
+        "method": "POST",
+        "path": "/admin/cards/{cardId}/block",
+        "label": "Block card",
+        "body": null
+    }, {
+        "group": "Admin",
+        "method": "POST",
+        "path": "/admin/cards/{cardId}/reset-pin",
+        "label": "Force-reset card PIN hash",
+        "body": null
+    }, {
+        "group": "Account",
+        "method": "GET",
+        "path": "/account/all",
+        "label": "List accounts",
+        "body": null
+    }, {
+        "group": "Account",
+        "method": "GET",
+        "path": "/account/{id}",
+        "label": "Get account by ID",
+        "body": null
+    }, {
+        "group": "Account",
+        "method": "POST",
+        "path": "/account/add",
+        "label": "Create account",
+        "body": {
+            "accountNumber": "AZ100000000000000005",
+            "balance": "300",
+            "dailyLimit": "1000",
+            "accountType": "CHECKING",
+            "status": "ACTIVE",
+            "customer": {
+                "id": 1
+            }
+        }
+    }, {
+        "group": "Account",
+        "method": "PUT",
+        "path": "/account/{id}",
+        "label": "Replace account",
+        "body": {
+            "accountNumber": "AZ100000000000000001",
+            "balance": "500",
+            "dailyLimit": "1000",
+            "accountType": "CHECKING",
+            "status": "ACTIVE",
+            "customer": {
+                "id": 1
+            }
+        }
+    }, {
+        "group": "Account",
+        "method": "DELETE",
+        "path": "/account/{id}",
+        "label": "Delete account",
+        "body": null
+    }, {
+        "group": "Account",
+        "method": "POST",
+        "path": "/account/{accountId}/unblock",
+        "label": "Unblock account",
+        "body": null
+    }, {
+        "group": "Account",
+        "method": "POST",
+        "path": "/account/{accountId}/block",
+        "label": "Block account",
+        "body": null
+    }, {
+        "group": "ATM",
+        "method": "POST",
+        "path": "/atm/login",
+        "label": "ATM login / verify card PIN",
+        "body": {"cardNumber": "4532678912348812", "pin": "1234"}
+    }, {
+        "group": "ATM",
+        "method": "GET",
+        "path": "/atm/balance",
+        "label": "Get balance by card number",
+        "body": null
+    }, {
+        "group": "ATM terminals",
+        "method": "POST",
+        "path": "/atm/terminal/add",
+        "label": "Create ATM terminal",
+        "body": {
+            "terminalCode": "ATM-KICK-01",
+            "location": "Khaldoun 25",
+            "status": "ACTIVE",
+            "ipAddress": "127.0.0.1",
+            "softwareVersion": "v2.1.1",
+            "cassette1Count": "0",
+            "cassette5Count": "0",
+            "cassette10Count": "0",
+            "cassette20Count": "0",
+            "cassette50Count": "2",
+            "cassette100Count": "0",
+            "cassette200Count": "0",
+            "cassette500Count": "0"
+        }
+    }, {
+        "group": "ATM terminals",
+        "method": "GET",
+        "path": "/atm/terminal/all",
+        "label": "List ATM terminals",
+        "body": null
+    }, {
+        "group": "ATM terminals",
+        "method": "GET",
+        "path": "/atm/terminal/{id}",
+        "label": "Get terminal by ID",
+        "body": null
+    }, {"group": "Card", "method": "GET", "path": "/card/all", "label": "List cards", "body": null}, {
+        "group": "Card",
+        "method": "GET",
+        "path": "/card/{id}",
+        "label": "Get card by ID",
+        "body": null
+    }, {
+        "group": "Card",
+        "method": "POST",
+        "path": "/card/add",
+        "label": "Create card",
+        "body": {
+            "cardNumber": "4532678912341221",
+            "pin": "1234",
+            "cardType": "DEBIT",
+            "customerId": 1,
+            "accountId": 1
+        }
+    }, {
+        "group": "Card",
+        "method": "POST",
+        "path": "/card/{id}/verify-pin",
+        "label": "Verify card PIN",
+        "body": {"pin": "1234"}
+    }, {
+        "group": "Card",
+        "method": "POST",
+        "path": "/card/{cardId}/pin-change",
+        "label": "Change card PIN",
+        "body": {"oldPin": "1234", "newPin": "4321"}
+    }, {
+        "group": "Cash",
+        "method": "POST",
+        "path": "/cash/withdraw",
+        "label": "Withdraw cash from ATM",
+        "body": null
+    }, {
+        "group": "Customer",
+        "method": "GET",
+        "path": "/customer/all",
+        "label": "List customers",
+        "body": null
+    }, {
+        "group": "Customer",
+        "method": "GET",
+        "path": "/customer/{id}",
+        "label": "Get customer by ID",
+        "body": null
+    }, {
+        "group": "Customer",
+        "method": "POST",
+        "path": "/customer/add",
+        "label": "Create customer",
+        "body": {
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john@example.com",
+            "phoneNumber": "+994501234567",
+            "dateOfBirth": "2000-01-01",
+            "nationalId": "AZ1234567",
+            "passwordHash": "replace-with-hash",
+            "status": "ACTIVE"
+        }
+    }, {
+        "group": "Customer",
+        "method": "PUT",
+        "path": "/customer/{id}",
+        "label": "Replace customer",
+        "body": {
+            "firstName": "John",
+            "lastName": "Doe",
+            "email": "john@example.com",
+            "phoneNumber": "+994501234567",
+            "dateOfBirth": "2000-01-01",
+            "nationalId": "AZ1234567",
+            "passwordHash": "replace-with-hash",
+            "status": "ACTIVE"
+        }
+    }, {
+        "group": "Customer",
+        "method": "DELETE",
+        "path": "/customer/{id}",
+        "label": "Delete customer",
+        "body": null
+    }, {
+        "group": "Customer",
+        "method": "GET",
+        "path": "/customer/status/{status}",
+        "label": "List customers by status",
+        "body": null
+    }, {
+        "group": "Notification",
+        "method": "POST",
+        "path": "/notification/send",
+        "label": "Send notification",
+        "body": {
+            "type": "EMAIL",
+            "recipient": "test@example.com",
+            "title": "Title",
+            "message": "Perfect message!"
+        }
+    }, {
+        "group": "Transaction",
+        "method": "POST",
+        "path": "/transaction/execute",
+        "label": "Execute account transaction",
+        "body": {"accountId": 1, "amount": 150.0, "type": "DEBIT"}
+    }, {
+        "group": "Transaction",
+        "method": "GET",
+        "path": "/transaction",
+        "label": "Get transaction history",
+        "body": null
+    }, {
+        "group": "Transaction",
+        "method": "GET",
+        "path": "/transaction/{id}",
+        "label": "Get transaction by ID",
+        "body": null
+    }, {
+        "group": "Transaction",
+        "method": "POST",
+        "path": "/transaction/{id}/refund",
+        "label": "Refund transaction",
+        "body": null
+    }, {
+        "group": "Transaction",
+        "method": "GET",
+        "path": "/transaction/{id}/receipt",
+        "label": "Get transaction receipt",
+        "body": null
+    }, {
+        "group": "Transaction",
+        "method": "POST",
+        "path": "/transaction/transfer",
+        "label": "Transfer between accounts",
+        "body": {
+            "sourceAccountId": 1,
+            "destinationAccountId": 2,
+            "amount": 50.0
+        }
+    }];
+    const select = document.getElementById('endpointSelect'), methodInput = document.getElementById('httpMethod'),
+        urlInput = document.getElementById('httpUrl'), bodyInput = document.getElementById('requestBody');
+    const paramsContainer = document.getElementById('paramsContainer'),
+        headersContainer = document.getElementById('headersContainer');
+
+    function esc(s) {
+        return String(s).replace(/[&<>"']/g, c => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[c]));
+    }
+
+    function addRow(container, cls, key = '', value = '') {
+        const row = document.createElement('div');
+        row.className = 'input-group mb-2 ' + cls;
+        row.innerHTML = `<input class="form-control row-key" aria-label="Key" placeholder="${cls === 'param-row' ? 'Parameter name' : 'Header name'}" value="${esc(key)}"><input class="form-control row-value" aria-label="Value" placeholder="Value" value="${esc(value)}"><button class="btn btn-outline-danger" type="button" aria-label="Remove row">×</button>`;
+        row.querySelector('button').addEventListener('click', () => row.remove());
+        container.appendChild(row);
+    }
+
+    function loadEndpoint() {
+        const ep = endpoints[Number(select.value)];
+        if (!ep) return;
+        methodInput.value = ep.method;
+        urlInput.value = ep.path;
+        bodyInput.value = ep.body === null ? '' : JSON.stringify(ep.body, null, 2);
+        paramsContainer.innerHTML = '';
+        headersContainer.innerHTML = '';
+        if (ep.method === 'GET' || ep.path === '/admin/accounts/{accountId}/limit' || ep.path === '/admin/terminals/{terminalId}/status' || ep.path === '/admin/{adminId}/profile' || ep.path === '/admin/cards/{cardId}/reset-pin' || ep.path === '/cash/withdraw' || ep.path === '/atm/balance' || ep.path === '/transaction') {
+            if (ep.path === '/atm/balance') addRow(paramsContainer, 'param-row', 'cardNumber', '4000000000000001');
+            if (ep.path === '/cash/withdraw') {
+                addRow(paramsContainer, 'param-row', 'atmId', '1');
+                addRow(paramsContainer, 'param-row', 'amount', '600');
+            }
+            if (ep.path === '/admin/accounts/{accountId}/limit') addRow(paramsContainer, 'param-row', 'limit', '999');
+            if (ep.path === '/admin/terminals/{terminalId}/status') addRow(paramsContainer, 'param-row', 'status', 'OFFLINE');
+            if (ep.path === '/admin/{adminId}/profile') {
+                addRow(paramsContainer, 'param-row', 'username', 'admin');
+                addRow(paramsContainer, 'param-row', 'email', 'admin@atm.com');
+            }
+            if (ep.path === '/admin/cards/{cardId}/reset-pin') addRow(paramsContainer, 'param-row', 'temporaryPinHash', 'replace-with-hash');
+            if (ep.path === '/transaction') {
+                addRow(paramsContainer, 'param-row', 'accountId', '1');
+                addRow(paramsContainer, 'param-row', 'startDate', '2026-01-01T00:00:00');
+                addRow(paramsContainer, 'param-row', 'endDate', '2026-12-31T23:59:59');
+                addRow(paramsContainer, 'param-row', 'page', '0');
+                addRow(paramsContainer, 'param-row', 'size', '10');
+            }
+        }
+        if (ep.path.includes('/refund') || ep.path === '/transaction/execute' || ep.path === '/transaction/transfer') addRow(headersContainer, 'header-row', 'Idempotency-Key', crypto.randomUUID());
+        addRow(headersContainer, 'header-row', 'Accept', 'application/json');
+    }
+
+    endpoints.forEach((ep, i) => {
+        const o = document.createElement('option');
+        o.value = i;
+        o.textContent = `${ep.group} · ${ep.method} ${ep.path} — ${ep.label}`;
+        select.appendChild(o);
+    });
+    select.addEventListener('change', loadEndpoint);
+    document.getElementById('addParamBtn').addEventListener('click', () => addRow(paramsContainer, 'param-row'));
+    document.getElementById('addHeaderBtn').addEventListener('click', () => addRow(headersContainer, 'header-row'));
+    document.getElementById('formatBtn').addEventListener('click', () => {
+        try {
+            if (bodyInput.value.trim()) bodyInput.value = JSON.stringify(JSON.parse(bodyInput.value), null, 2);
+        } catch (e) {
+            alert('Invalid JSON: ' + e.message);
+        }
+    });
+    document.getElementById('clearBtn').addEventListener('click', () => {
+        document.getElementById('responseStatus').className = 'badge text-bg-secondary';
+        document.getElementById('responseStatus').textContent = 'Not sent';
+        document.getElementById('responseBody').textContent = 'Response output will appear here.';
+    });
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+        const method = methodInput.value;
+        let url = urlInput.value.trim();
+        if (!url) {
+            alert('Enter a request path.');
+            return;
+        }
+        const params = [];
+        paramsContainer.querySelectorAll('.param-row').forEach(r => {
+            const k = r.querySelector('.row-key').value.trim(), v = r.querySelector('.row-value').value;
+            if (k && v !== '') params.push(encodeURIComponent(k) + '=' + encodeURIComponent(v));
+        });
+        if (params.length) url += (url.includes('?') ? '&' : '?') + params.join('&');
+        const headers = {};
+        headersContainer.querySelectorAll('.header-row').forEach(r => {
+            const k = r.querySelector('.row-key').value.trim(), v = r.querySelector('.row-value').value;
+            if (k) headers[k] = v;
+        });
+        const options = {method, headers};
+        if (['POST', 'PUT', 'PATCH'].includes(method) && bodyInput.value.trim()) {
+            try {
+                JSON.parse(bodyInput.value);
+            } catch (e) {
+                alert('Request body is not valid JSON: ' + e.message);
+                return;
+            }
+            headers['Content-Type'] = 'application/json';
+            options.body = bodyInput.value;
+        }
+        const status = document.getElementById('responseStatus'), out = document.getElementById('responseBody');
+        status.className = 'badge text-bg-info';
+        status.textContent = 'Sending…';
+        out.textContent = 'Loading…';
+        try {
+            const res = await fetch(url, options);
+            const text = await res.text();
+            let formatted = text;
+            try {
+                formatted = text ? JSON.stringify(JSON.parse(text), null, 2) : '[Empty response]';
+            } catch {
+            }
+            status.className = 'badge ' + (res.ok ? 'text-bg-success' : 'text-bg-danger');
+            status.textContent = `${res.status} ${res.statusText}`;
+            out.textContent = formatted;
+        } catch (e) {
+            status.className = 'badge text-bg-danger';
+            status.textContent = 'Network error';
+            out.textContent = e.message + '\n\nCheck that Spring Boot is running and this page is served by the same origin.';
+        }
+    });
+    const ref = document.getElementById('endpointReference');
+    ref.innerHTML = '<table class="table table-sm table-hover align-middle"><thead><tr><th>Method</th><th>Path</th><th>Controller / action</th></tr></thead><tbody>' + endpoints.map(e => `<tr><td><span class="method text-${e.method === 'GET' ? 'success' : e.method === 'DELETE' ? 'danger' : e.method === 'PATCH' ? 'warning' : 'primary'}">${e.method}</span></td><td><code>${esc(e.path)}</code></td><td>${esc(e.group + ' · ' + e.label)}</td></tr>`).join('') + '</tbody></table>';
+    select.value = '0';
+    loadEndpoint();
+</script>
+</body>
+</html>
